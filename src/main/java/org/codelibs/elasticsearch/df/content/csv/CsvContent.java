@@ -18,6 +18,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+
+import org.json.JSONObject;
+import org.json.JSONTokener;
+
+import jdk.nashorn.internal.parser.JSONParser;
 import org.apache.logging.log4j.Logger;
 import org.codelibs.elasticsearch.df.content.ContentType;
 import org.codelibs.elasticsearch.df.content.DataContent;
@@ -28,7 +33,11 @@ import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.logging.Loggers;
+import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.common.xcontent.XContentFactory;
+import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.search.SearchHit;
@@ -56,6 +65,9 @@ public class CsvContent extends DataContent {
                 request.param("csv.separator", ",").charAt(0), request.param(
                 "csv.quote", "\"").charAt(0), request.param(
                 "csv.escape", "\"").charAt(0));
+
+
+
         csvConfig.setQuoteDisabled(request.paramAsBoolean("csv.quoteDisabled",
                 false));
         csvConfig.setEscapeDisabled(request.paramAsBoolean(
@@ -73,8 +85,19 @@ public class CsvContent extends DataContent {
         if (request.hasParam("fl")) {
             fields_name = "fl";
         }
-        final String[] fields = request.paramAsStringArray(fields_name,
-                StringUtils.EMPTY_STRINGS);
+        String[] fields;
+        if( request.method() == RestRequest.Method.POST) {
+            JSONTokener tokener = new JSONTokener(request.content().utf8ToString());
+            JSONObject content = new JSONObject(tokener);
+            fields = content.get(fields_name).toString().split(",");
+
+        }
+        else {
+           fields =  request.paramAsStringArray(fields_name,
+                    StringUtils.EMPTY_STRINGS);
+        }
+
+
         if (fields.length == 0) {
             headerSet = new LinkedHashSet<>();
             modifiableFieldSet = true;
